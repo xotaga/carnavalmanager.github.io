@@ -19060,7 +19060,15 @@ function startParade() {
   }
   if(logEl) logEl.innerHTML = logHtml;
 
-  _runParadeInterval();
+  // Aguarda o DOM renderizar antes de iniciar o intervalo (garante que o canvas está pronto)
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      try { _runParadeInterval(); } catch(e) {
+        console.error('[startParade] Erro em _runParadeInterval:', e);
+        try { skipToResults(); } catch(e2) { console.error('[startParade fallback]', e2); }
+      }
+    }, 50);
+  });
   } catch(e) {
     console.error('[startParade] Erro:', e);
     // Fallback: pula direto para resultados se der erro
@@ -19071,7 +19079,7 @@ function startParade() {
 function _runParadeInterval() {
   if(paradeInterval) { clearInterval(paradeInterval); paradeInterval = null; }
   const canvas = document.getElementById('paradeCanvas');
-  if(!canvas) { console.error('[_runParadeInterval] Canvas não encontrado!'); return; }
+  if(!canvas) { console.error('[_runParadeInterval] Canvas não encontrado! Pulando para resultados.'); try { skipToResults(); } catch(e2) { console.error(e2); } return; }
   const ctx = canvas.getContext('2d');
   let animFrame = 0;
   const evPool = buildParadeEvents();
@@ -19751,8 +19759,9 @@ function _revealParadeScore(key, note) {
 function skipToResults() {
   if(paradeInterval)   { clearInterval(paradeInterval);  paradeInterval   = null; }
   if(paradeEndTimeout) { clearTimeout(paradeEndTimeout); paradeEndTimeout = null; }
-  // Garante notas calculadas
-  if(!gameState.finalNotes) calculateFinalNotes();
+  // Garante scores e notas calculadas
+  if(!gameState.scores) gameState.scores = {comissao:50,casal:50,bateria:50,harmonia:50,evolucao:50,enredo:50,samba:50,fantasias:50,alegorias:50};
+  if(!gameState.finalNotes) { try { calculateFinalNotes(); } catch(e) { console.error('[skipToResults] calculateFinalNotes falhou:', e); gameState.finalNotes = {comissao:9.5,casal:9.5,bateria:9.5,harmonia:9.5,evolucao:9.5,enredo:9.5,samba:9.5,fantasias:9.5,alegorias:9.5,_total:85.5}; } }
   // Reveal all scores instantly
   ['comissao','casal','bateria','harmonia','evolucao','enredo','samba','fantasias','alegorias'].forEach(k=>{
     if(gameState.finalNotes?.[k]) _revealParadeScore(k, gameState.finalNotes[k]);
